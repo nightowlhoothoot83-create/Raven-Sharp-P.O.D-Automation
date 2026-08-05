@@ -36,6 +36,16 @@ export default function ADGFooter() {
           </p>
         </div>
 
+
+        <nav aria-label="Explore the Raven Sharp suite" className="flex flex-wrap justify-center gap-3 mb-8 text-xs">
+          <a href="https://raven-sharp.com" className="text-[var(--raven-glow)] hover:text-white">Raven Sharp Home</a>
+          <a href="https://pod.raven-sharp.com" className="text-[var(--muted)] hover:text-white">POD Automation</a>
+          <a href="https://opt.raven-sharp.com" className="text-[var(--muted)] hover:text-white">Image Optimiser</a>
+          <a href="https://books.raven-sharp.com" className="text-[var(--muted)] hover:text-white">Book Creator</a>
+          <a href="https://content.raven-sharp.com" className="text-[var(--muted)] hover:text-white">Content Creator</a>
+          <a href="https://ads.raven-sharp.com" className="text-[var(--muted)] hover:text-white">Ad Manager</a>
+          <a href="https://cleaner.raven-sharp.com" className="text-[var(--muted)] hover:text-white">Smart Cleaner</a>
+        </nav>
         {/* Brand logos */}
         <div className="mb-10">
           <p className="text-center text-[10px] font-mono uppercase tracking-[0.2em] text-[var(--subtle)] mb-6">
