@@ -113,6 +113,29 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Product output preview */}
+      <section className="py-16" aria-labelledby="pod-output-title">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="glass rounded-3xl p-6 sm:p-9 border border-[var(--raven)]/25">
+            <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-8 items-center">
+              <div className="rounded-2xl bg-[#080815] border border-white/10 p-4 shadow-2xl">
+                <div className="flex items-center justify-between pb-3 border-b border-white/10"><span className="text-xs font-mono text-[var(--raven-glow)]">REVIEW QUEUE</span><span className="text-[10px] text-emerald-400">READY TO PUBLISH</span></div>
+                <div className="grid grid-cols-[92px_1fr] gap-4 pt-4">
+                  <div className="aspect-square rounded-xl bg-gradient-to-br from-violet-500/50 to-cyan-400/30 grid place-items-center text-5xl">🦅</div>
+                  <div><h3 className="font-display font-bold">Midnight Raven Graphic Tee</h3><p className="text-xs text-[var(--muted)] mt-1">SEO score 94 · 13 tags · Printify draft</p><div className="flex flex-wrap gap-2 mt-4">{["T-shirt","Hoodie","Poster"].map(x=><span key={x} className="text-[10px] border border-white/10 rounded-full px-2 py-1">{x}</span>)}</div></div>
+                </div>
+              </div>
+              <div>
+                <span className="text-xs font-mono uppercase tracking-[0.25em] text-[var(--gold)]">Example output</span>
+                <h2 id="pod-output-title" className="font-display text-3xl sm:text-4xl font-bold tracking-tight mt-2 mb-4">A complete listing, not a loose prompt.</h2>
+                <p className="text-[var(--muted)] leading-relaxed mb-5">Each run produces matched products, platform-safe artwork, a title, description and tags, then holds everything for your approval.</p>
+                <div className="grid grid-cols-2 gap-3 text-xs">{["Product mockups","SEO listing copy","Platform package","Approval controls"].map(x=><div key={x} className="rounded-xl bg-white/5 border border-white/10 px-3 py-3 flex gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" />{x}</div>)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Pricing */}
       <section className="py-20 sm:py-24" id="pricing">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
