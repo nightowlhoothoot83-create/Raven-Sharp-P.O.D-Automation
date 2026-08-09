@@ -1,11 +1,15 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
+import api from "../lib/api";
+import ADGFooter from "../components/ADGFooter";
 
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const selectedTier = searchParams.get("tier");
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
   const [loading, setLoading] = useState(false);
 
@@ -16,6 +20,11 @@ export default function Register() {
     setLoading(true);
     try {
       await register(form.email, form.password, form.name);
+      if (selectedTier && selectedTier !== "free") {
+        const { data } = await api.post("/billing/checkout", { tier: selectedTier, billing: "monthly" });
+        window.location.href = data.checkout_url;
+        return;
+      }
       navigate("/dashboard");
       toast.success("Welcome to Raven Sharp!");
     } catch (err) {
@@ -26,7 +35,7 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-16">
+    <div className="min-h-screen flex flex-col"><div className="flex-1 flex items-center justify-center px-4 py-16">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <img src="/brands/ravenSharpLogo.png" alt="Raven Sharp" className="w-20 h-20 object-contain mx-auto mb-4 drop-shadow-[0_0_20px_rgba(124,92,191,0.4)]" />
@@ -61,7 +70,7 @@ export default function Register() {
             </div>
             <button type="submit" disabled={loading}
               className="w-full h-12 bg-gradient-to-r from-[var(--raven)] to-[var(--raven-blue)] hover:brightness-110 shadow-[0_4px_16px_rgba(124,92,191,0.35)] hover:shadow-[0_6px_24px_rgba(124,92,191,0.5)] text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50 glow-pulse">
-              {loading ? "Creating account..." : "Create Free Account"}
+              {loading ? "Creating account..." : selectedTier ? `Create Account & Continue to ${selectedTier}` : "Create Free Account"}
             </button>
           </form>
           <p className="text-center text-[10px] text-[var(--subtle)] mt-5">
@@ -76,6 +85,6 @@ export default function Register() {
           </p>
         </div>
       </div>
-    </div>
+    </div><ADGFooter /></div>
   );
 }
