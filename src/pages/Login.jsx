@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
+import ADGFooter from "../components/ADGFooter";
 
 export default function Login() {
   const { login } = useAuth();
@@ -23,7 +24,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="min-h-screen flex flex-col">
+      <div className="flex-1 flex items-center justify-center px-4 py-20">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <img src="/brands/ravenSharpLogo.png" alt="Raven Sharp" className="w-20 h-20 object-contain mx-auto mb-4 drop-shadow-[0_0_20px_rgba(124,92,191,0.4)]" />
@@ -54,7 +56,8 @@ export default function Login() {
             <Link to="/register" className="text-[var(--raven-glow)] hover:underline">Create one free</Link>
           </p>
         </div>
-      </div>
+      </div></div>
+      <ADGFooter />
     </div>
   );
 }
