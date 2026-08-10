@@ -59,7 +59,7 @@ export default function TopNav() {
               <div className="font-display text-lg font-black tracking-tight leading-none">
                 RAVEN <span className="text-[var(--raven-glow)]">SHARP</span>
               </div>
-              <div className="text-[9px] font-mono uppercase tracking-[0.2em] text-[var(--subtle)]">
+              <div className="text-[9px] font-mono uppercase tracking-[0.2em] text-[var(--raven-blue)]">
                 POD Suite
               </div>
             </div>
