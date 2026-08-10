@@ -30,11 +30,9 @@ function ProtectedRoute({ children }) {
 
 function AuthRoute({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-12 h-12 rounded-full border-2 border-[var(--raven)] border-t-transparent animate-spin" />
-    </div>
-  );
+  // Public account pages should remain useful while the session probe runs.
+  // If an existing session is confirmed, the normal redirect still applies.
+  if (loading) return children;
   return user ? <Navigate to="/dashboard" replace /> : children;
 }
 
