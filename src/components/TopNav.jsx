@@ -49,17 +49,17 @@ export default function TopNav() {
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
+          <Link to="/" className="flex items-center gap-2 sm:gap-3 group min-w-0">
             <img
               src="/brands/ravenSharpLogo.png"
               alt="Raven Sharp"
-              className="w-11 h-11 object-contain group-hover:scale-105 transition-transform drop-shadow-[0_0_8px_rgba(124,92,191,0.4)]"
+              className="w-9 h-9 sm:w-11 sm:h-11 object-contain group-hover:scale-105 transition-transform drop-shadow-[0_0_8px_rgba(124,92,191,0.4)] shrink-0"
             />
-            <div className="hidden sm:block">
-              <div className="font-display text-lg font-extrabold tracking-[-0.025em] leading-none">
+            <div className="block min-w-0">
+              <div className="font-display text-sm sm:text-lg font-extrabold tracking-[-0.025em] leading-none whitespace-nowrap">
                 RAVEN <span className="text-[var(--raven-glow)]">SHARP</span>
               </div>
-              <div className="text-[9px] font-mono uppercase tracking-[0.2em] text-[var(--raven-blue)]">
+              <div className="text-[8px] sm:text-[9px] font-mono uppercase tracking-[0.12em] sm:tracking-[0.2em] text-[var(--raven-blue)] whitespace-nowrap">
                 POD Suite
               </div>
             </div>
@@ -86,7 +86,7 @@ export default function TopNav() {
           )}
 
           {/* Right side */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {user ? (
               <div className="relative">
                 <button
@@ -128,13 +128,13 @@ export default function TopNav() {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <Link to="/login"
-                  className="px-4 py-2 text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors">
+                  className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors">
                   Sign In
                 </Link>
                 <Link to="/register"
-                  className="px-4 py-2 text-sm font-semibold bg-gradient-to-r from-[var(--raven)] to-[var(--raven-blue)] hover:brightness-110 shadow-[0_4px_16px_rgba(124,92,191,0.35)] hover:shadow-[0_6px_24px_rgba(124,92,191,0.5)] text-white rounded-lg transition-all">
+                  className="px-2.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold bg-gradient-to-r from-[var(--raven)] to-[var(--raven-blue)] hover:brightness-110 shadow-[0_4px_16px_rgba(124,92,191,0.35)] hover:shadow-[0_6px_24px_rgba(124,92,191,0.5)] text-white rounded-lg transition-all whitespace-nowrap">
                   Get Started
                 </Link>
               </div>
