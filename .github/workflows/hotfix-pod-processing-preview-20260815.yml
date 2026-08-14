@@ -1,0 +1,41 @@
+name: Hotfix POD processing and preview
+on:
+  push:
+    paths: ['.github/workflows/hotfix-pod-processing-preview-20260815.yml']
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch POD processing and upload preview
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('backend/server.py'); s=p.read_text()
+          if '"inputImage": data_uri,' in s:
+              s=s.replace('"inputImage": data_uri,','"inputs": {"image": data_uri},')
+          p.write_text(s)
+          p=Path('src/pages/Pipeline.jsx'); s=p.read_text()
+          old='''    const loaded = await Promise.all(valid.map(async f => ({\n      id: Math.random().toString(36).slice(2),\n      file: f,\n      name: f.name,\n      size: f.size,\n      preview: URL.createObjectURL(f),\n      base64: await fileToBase64(f),\n      mime: f.type,\n      removeBg: false,\n    })));'''
+          new='''    const loaded = await Promise.all(valid.map(async f => {\n      const base64 = await fileToBase64(f);\n      return {\n        id: Math.random().toString(36).slice(2),\n        file: f,\n        name: f.name,\n        size: f.size,\n        preview: `data:${f.type || "image/png"};base64,${base64}`,\n        base64,\n        mime: f.type,\n        removeBg: false,\n      };\n    }));'''
+          if old in s: s=s.replace(old,new,1)
+          elif 'preview: `data:${f.type || "image/png"};base64,${base64}`' not in s:
+              raise SystemExit('preview marker missing')
+          p.write_text(s)
+      - name: Verify
+        run: |
+          python -m py_compile backend/server.py
+          grep -q 'inputs.*image.*data_uri' backend/server.py
+          grep -q 'data:${f.type' src/pages/Pipeline.jsx
+          npm ci
+          CI=false npm run build
+      - name: Commit
+        run: |
+          git config user.name 'Raven Repair Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add backend/server.py src/pages/Pipeline.jsx
+          git diff --cached --quiet || (git commit -m 'Fix POD processing start and stable upload preview' && git push)
