@@ -1,0 +1,55 @@
+name: Repair POD final preview on latest main
+on:
+  push:
+    paths:
+      - '.github/workflows/repair-pod-final-preview-rebase-20260815.yml'
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Patch persistent review preview
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('backend/server.py'); s=p.read_text()
+          marker='async def _process_one_pipeline_image(run_id, idx, total, img_data, platform, market, price_tier, checkpoint=None):'
+          helper='''def make_review_preview_data_url(image_b64: str, max_edge: int = 640) -> str:\n    try:\n        img = Image.open(io.BytesIO(base64.b64decode(image_b64)))\n        img.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)\n        if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):\n            rgba = img.convert("RGBA")\n            bg = Image.new("RGB", rgba.size, "white")\n            bg.paste(rgba, mask=rgba.getchannel("A"))\n            img = bg\n        else:\n            img = img.convert("RGB")\n        buf = io.BytesIO(); img.save(buf, format="JPEG", quality=76, optimize=True)\n        return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()\n    except Exception as e:\n        log.warning("Could not create review preview: %s", e); return ""\n\n\n'''
+          if 'def make_review_preview_data_url(' not in s:
+              if marker not in s: raise SystemExit('pipeline marker missing')
+              s=s.replace(marker,helper+marker,1)
+          old='''        return {\n            "id": checkpoint.get("id") or str(uuid.uuid4()),\n            "name": seo_name,\n            "original_name": name,\n            "public_url": public_url,\n            "upscaled_b64": upscaled_b64[:100] + "...",\n            "analysis": analysis,'''
+          new='''        preview_data_url = make_review_preview_data_url(upscaled_b64)\n        return {\n            "id": checkpoint.get("id") or str(uuid.uuid4()),\n            "name": seo_name,\n            "original_name": name,\n            "public_url": public_url,\n            "preview_data_url": preview_data_url,\n            "upscaled_b64": upscaled_b64[:100] + "...",\n            "analysis": analysis,'''
+          if old in s: s=s.replace(old,new,1)
+          elif '"preview_data_url": preview_data_url' not in s: raise SystemExit('result marker missing')
+          p.write_text(s)
+          q=Path('src/pages/ReviewQueue.jsx'); t=q.read_text()
+          old2='''  const products = analysis.recommended_products || [];\n  const status = listing.status;'''
+          new2='''  const products = analysis.recommended_products || [];\n  const status = listing.status;\n  const previewSrc = listing.preview_data_url || listing.public_url || listing.checkpoint?.public_url || "";'''
+          if old2 in t: t=t.replace(old2,new2,1)
+          elif 'const previewSrc =' not in t: raise SystemExit('preview source marker missing')
+          t=t.replace('''          {listing.public_url ? (\n            <img src={listing.public_url} alt={listing.name}''','''          {previewSrc ? (\n            <img src={previewSrc} alt={listing.name}''',1)
+          if 'Processed Artwork Preview' not in t:
+              marker2='''              {analysis.seo_title && ('''
+              block='''              {previewSrc && (\n                <div>\n                  <p className="text-xs text-[var(--muted)] mb-2">Processed Artwork Preview</p>\n                  <div className="rounded-xl overflow-hidden bg-white/5 border border-white/10">\n                    <img src={previewSrc} alt={listing.name} className="w-full max-h-[480px] object-contain bg-black/20" />\n                  </div>\n                </div>\n              )}\n'''
+              if marker2 not in t: raise SystemExit('detail marker missing')
+              t=t.replace(marker2,block+marker2,1)
+          q.write_text(t)
+      - name: Verify
+        run: |
+          python -m py_compile backend/server.py
+          npm ci
+          npm run build
+      - name: Commit and rebase safely
+        run: |
+          git config user.name 'Raven Repair Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add backend/server.py src/pages/ReviewQueue.jsx
+          if ! git diff --cached --quiet; then git commit -m 'Fix POD final processed artwork preview'; fi
+          git pull --rebase origin main
+          git push origin main
