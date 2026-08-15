@@ -1,0 +1,50 @@
+name: Add POD large final review preview
+on:
+  push:
+    paths:
+      - '.github/workflows/add-pod-large-final-preview-20260815.yml'
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Add large processed artwork preview
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('src/pages/ReviewQueue.jsx')
+          s=p.read_text()
+          old='''  const analysis = listing.analysis || {};\n  const products = analysis.recommended_products || [];\n  const status = listing.status;'''
+          new='''  const analysis = listing.analysis || {};\n  const products = analysis.recommended_products || [];\n  const status = listing.status;\n  const previewSrc = listing.public_url || (listing.preview_b64 ? `data:image/jpeg;base64,${listing.preview_b64}` : "");'''
+          if old in s:
+              s=s.replace(old,new,1)
+          elif 'const previewSrc =' not in s:
+              raise SystemExit('ListingCard state marker missing')
+          old_thumb='''          {(listing.public_url || listing.preview_b64) ? (\n            <img src={listing.public_url || `data:image/jpeg;base64,${listing.preview_b64}`} alt={listing.name}'''
+          new_thumb='''          {previewSrc ? (\n            <img src={previewSrc} alt={listing.name}'''
+          if old_thumb in s:
+              s=s.replace(old_thumb,new_thumb,1)
+          marker='''              {analysis.seo_title && ('''
+          block='''              {previewSrc && (\n                <div>\n                  <p className="text-xs text-[var(--muted)] mb-2">Processed Artwork Preview</p>\n                  <div className="rounded-xl overflow-hidden bg-black/20 border border-white/10 p-2">\n                    <img\n                      src={previewSrc}\n                      alt={`Processed preview of ${listing.name}`}\n                      className="w-full max-h-[520px] object-contain rounded-lg"\n                    />\n                  </div>\n                </div>\n              )}\n'''
+          if 'Processed Artwork Preview' not in s:
+              if marker not in s:
+                  raise SystemExit('Read-only detail marker missing')
+              s=s.replace(marker,block+marker,1)
+          p.write_text(s)
+      - name: Build verify
+        run: |
+          npm ci
+          npm run build
+      - name: Commit safely
+        run: |
+          git config user.name 'Raven Repair Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add src/pages/ReviewQueue.jsx
+          if ! git diff --cached --quiet; then git commit -m 'Show processed artwork preview in POD review'; fi
+          git pull --rebase origin main
+          git push origin main
