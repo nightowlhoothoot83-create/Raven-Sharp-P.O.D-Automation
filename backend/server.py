@@ -431,7 +431,8 @@ async def delete_profile(profile_id: str, user: dict = Depends(get_user)):
 
 # ── AI Image Generation ───────────────────────────────────────────────────────
 async def call_runware_image(prompt: str, width: int, height: int,
-                              reference_image_url: Optional[str] = None) -> Optional[dict]:
+                              reference_image_url: Optional[str] = None,
+                              negative_prompt: str = "") -> Optional[dict]:
     """Real character-consistency support via Runware's referenceImages
     parameter — FLUX Schnell (this app's default generator) has no such
     mechanism at all, so this is a genuine capability gap-fill, not just an
@@ -447,7 +448,13 @@ async def call_runware_image(prompt: str, width: int, height: int,
         "width": width, "height": height,
         "numberResults": 1,
         "outputType": "URL",
+        # Explicitly vary each request. Runware returns/uses a random seed when
+        # omitted, but setting our own makes batch diversity observable and
+        # prevents accidental deterministic reuse by a model/provider layer.
+        "seed": uuid.uuid4().int % 4294967296,
     }
+    if negative_prompt:
+        task["negativePrompt"] = negative_prompt
     if reference_image_url:
         task["referenceImages"] = [reference_image_url]
     try:
@@ -463,7 +470,7 @@ async def call_runware_image(prompt: str, width: int, height: int,
             data = res.json()
             results = data.get("data", data) if isinstance(data, dict) else data
             if isinstance(results, list) and results:
-                return {"image_url": results[0].get("imageURL")}
+                return {"image_url": results[0].get("imageURL"), "seed": results[0].get("seed")}
             return None
     except Exception as e:
         log.error(f"Runware call failed: {e}")
@@ -488,11 +495,11 @@ async def _process_image_gen(batch_id: str, user_id: str, full_prompt: str,
                            "current_index": i}}
             )
             try:
-                runware_result = await call_runware_image(full_prompt, dims["width"], dims["height"], reference_image_url)
+                runware_result = await call_runware_image(full_prompt, dims["width"], dims["height"], reference_image_url, negative)
                 if runware_result and runware_result.get("image_url"):
                     img_res = await client_http.get(runware_result["image_url"])
                     if img_res.is_success:
-                        generated.append({"index": i, "url": runware_result["image_url"], "base64": base64.b64encode(img_res.content).decode(), "provider": "runware"})
+                        generated.append({"index": i, "url": runware_result["image_url"], "base64": base64.b64encode(img_res.content).decode(), "provider": "runware", "seed": runware_result.get("seed")})
                     else:
                         await db.image_gen_batches.update_one(
                             {"id": batch_id},
