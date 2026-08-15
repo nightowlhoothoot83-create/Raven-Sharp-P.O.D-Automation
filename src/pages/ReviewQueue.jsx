@@ -51,6 +51,7 @@ function ListingCard({ listing, index, onUpdate, onApprove, onReject, bulkApprov
   const analysis = listing.analysis || {};
   const products = analysis.recommended_products || [];
   const status = listing.status;
+  const previewSrc = listing.public_url || (listing.preview_b64 ? `data:image/jpeg;base64,${listing.preview_b64}` : "");
 
   const saveEdit = () => {
     onUpdate(listing.id, { ...listing, analysis: draft });
@@ -68,8 +69,8 @@ function ListingCard({ listing, index, onUpdate, onApprove, onReject, bulkApprov
       <div className="flex items-center gap-4 p-5">
         {/* Thumbnail */}
         <div className="w-16 h-16 rounded-xl overflow-hidden bg-white/5 shrink-0">
-          {(listing.public_url || listing.preview_b64) ? (
-            <img src={listing.public_url || `data:image/jpeg;base64,${listing.preview_b64}`} alt={listing.name}
+          {previewSrc ? (
+            <img src={previewSrc} alt={listing.name}
               className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-[var(--subtle)] text-xs">No preview</div>
@@ -229,6 +230,18 @@ function ListingCard({ listing, index, onUpdate, onApprove, onReject, bulkApprov
                     <p className="text-xs text-[var(--muted)] mt-2">
                       Correct the reported connection or API setting, then start a new pipeline run.
                     </p>
+                  </div>
+                </div>
+              )}
+              {previewSrc && (
+                <div>
+                  <p className="text-xs text-[var(--muted)] mb-2">Processed Artwork Preview</p>
+                  <div className="rounded-xl overflow-hidden bg-black/20 border border-white/10 p-2">
+                    <img
+                      src={previewSrc}
+                      alt={`Processed preview of ${listing.name}`}
+                      className="w-full max-h-[520px] object-contain rounded-lg"
+                    />
                   </div>
                 </div>
               )}
