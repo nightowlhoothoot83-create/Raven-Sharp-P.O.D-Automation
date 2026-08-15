@@ -68,8 +68,8 @@ function ListingCard({ listing, index, onUpdate, onApprove, onReject, bulkApprov
       <div className="flex items-center gap-4 p-5">
         {/* Thumbnail */}
         <div className="w-16 h-16 rounded-xl overflow-hidden bg-white/5 shrink-0">
-          {listing.public_url ? (
-            <img src={listing.public_url} alt={listing.name}
+          {(listing.public_url || listing.preview_b64) ? (
+            <img src={listing.public_url || `data:image/jpeg;base64,${listing.preview_b64}`} alt={listing.name}
               className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-[var(--subtle)] text-xs">No preview</div>

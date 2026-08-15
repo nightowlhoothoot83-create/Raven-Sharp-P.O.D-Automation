@@ -970,6 +970,19 @@ Price in AUD for {market} market at {price_tier} pricing.
         if content.startswith("json"): content = content[4:]
     return json.loads(content.strip())
 
+def make_review_preview_b64(image_b64: str, max_px: int = 640) -> str:
+    """Create a small JPEG preview safe to persist in Mongo and render even when R2 upload is unavailable."""
+    try:
+        img = Image.open(io.BytesIO(base64.b64decode(image_b64))).convert("RGB")
+        img.thumbnail((max_px, max_px), Image.Resampling.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=82, optimize=True)
+        return base64.b64encode(buf.getvalue()).decode()
+    except Exception as e:
+        log.warning(f"make_review_preview_b64 failed: {e}")
+        return ""
+
+
 def apply_dpi_and_bleed(image_b64: str, dpi: int = 300, add_bleed: bool = False) -> str:
     """Sets the image's actual DPI metadata (so print platforms read the
     correct print size) and optionally adds bleed padding — ported from the
@@ -1095,6 +1108,8 @@ async def _process_one_pipeline_image(run_id, idx, total, img_data, platform, ma
                 proposed_name = f"{fallback_stem or 'original-artwork'}-print-on-demand-pod"
             seo_name = proposed_name[:120]
 
+        preview_b64 = make_review_preview_b64(upscaled_b64)
+
         if public_url:
             log.info(f"[{run_id}] {name}: reusing already-uploaded R2 url (checkpoint)")
         else:
@@ -1107,7 +1122,7 @@ async def _process_one_pipeline_image(run_id, idx, total, img_data, platform, ma
             "name": seo_name,
             "original_name": name,
             "public_url": public_url,
-            "upscaled_b64": upscaled_b64[:100] + "...",
+            "preview_b64": preview_b64,
             "analysis": analysis,
             "status": "pending_review",
             "platform": platform,
@@ -1149,7 +1164,7 @@ async def _process_pipeline_images(run_id: str, user_id: str, images_payload, pl
         # Save after every single image — partial progress is never lost
         await db.pipeline_runs.update_one(
             {"id": run_id},
-            {"$set": {"results": results, "total_count": len(results)}}
+            {"$set": {"results": results, "processed_count": len(results), "total_count": total}}
         )
 
     await db.pipeline_runs.update_one(
