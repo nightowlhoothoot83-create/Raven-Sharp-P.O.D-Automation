@@ -1,0 +1,45 @@
+name: Fix POD image variants
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-pod-image-variants-20260815.yml'
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch variant generation
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('backend/server.py')
+          s=p.read_text()
+          s=s.replace(
+          '''async def call_runware_image(prompt: str, width: int, height: int,\n                              reference_image_url: Optional[str] = None) -> Optional[dict]:''',
+          '''async def call_runware_image(prompt: str, width: int, height: int,\n                              reference_image_url: Optional[str] = None,\n                              negative_prompt: str = "") -> Optional[dict]:''', 1)
+          old='''        "width": width, "height": height,\n        "numberResults": 1,\n        "outputType": "URL",\n    }'''
+          new='''        "width": width, "height": height,\n        "numberResults": 1,\n        "outputType": "URL",\n        # Explicitly vary each request. Runware returns/uses a random seed when\n        # omitted, but setting our own makes batch diversity observable and\n        # prevents accidental deterministic reuse by a model/provider layer.\n        "seed": uuid.uuid4().int % 4294967296,\n    }\n    if negative_prompt:\n        task["negativePrompt"] = negative_prompt'''
+          if old not in s:
+              raise SystemExit('task marker missing')
+          s=s.replace(old,new,1)
+          oldcall='''runware_result = await call_runware_image(full_prompt, dims["width"], dims["height"], reference_image_url)'''
+          newcall='''runware_result = await call_runware_image(full_prompt, dims["width"], dims["height"], reference_image_url, negative)'''
+          if oldcall not in s:
+              raise SystemExit('generation call marker missing')
+          s=s.replace(oldcall,newcall,1)
+          # Persist returned provider seed when available so duplicate-output debugging is visible.
+          s=s.replace('''return {"image_url": results[0].get("imageURL")}''', '''return {"image_url": results[0].get("imageURL"), "seed": results[0].get("seed")}''', 1)
+          s=s.replace('''generated.append({"index": i, "url": runware_result["image_url"], "base64": base64.b64encode(img_res.content).decode(), "provider": "runware"})''', '''generated.append({"index": i, "url": runware_result["image_url"], "base64": base64.b64encode(img_res.content).decode(), "provider": "runware", "seed": runware_result.get("seed")})''', 1)
+          p.write_text(s)
+      - name: Verify
+        run: python -m py_compile backend/server.py
+      - name: Commit
+        run: |
+          git config user.name 'Raven Repair Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add backend/server.py
+          git diff --cached --quiet || (git commit -m 'Fix POD image variant diversity and prompt controls' && git push)
