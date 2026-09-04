@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import TopNav from "./components/TopNav";
+import ADGFooter from "./components/ADGFooter";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -30,8 +31,6 @@ function ProtectedRoute({ children }) {
 
 function AuthRoute({ children }) {
   const { user, loading } = useAuth();
-  // Public account pages should remain useful while the session probe runs.
-  // If an existing session is confirmed, the normal redirect still applies.
   if (loading) return children;
   return user ? <Navigate to="/dashboard" replace /> : children;
 }
@@ -60,9 +59,9 @@ function AppRoutes() {
         <Route path="/image-gen"   element={<ProtectedRoute><ImageGen /></ProtectedRoute>} />
         <Route path="/schedules"   element={<ProtectedRoute><Schedules /></ProtectedRoute>} />
         <Route path="/account"     element={<ProtectedRoute><Account /></ProtectedRoute>} />
+        <Route path="/health" element={<ProtectedRoute><><HealthMonitor /><ADGFooter /></></ProtectedRoute>} />
 
         {/* Fallback */}
-        <Route path="/health" element={<ProtectedRoute><HealthMonitor /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
