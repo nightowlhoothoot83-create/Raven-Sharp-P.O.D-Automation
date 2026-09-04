@@ -63,7 +63,16 @@ for _w in _startup_warnings:
 
 ANTHROPIC_KEY     = os.environ.get("ANTHROPIC_API_KEY", "")
 RUNWARE_API_KEY   = os.environ.get("RUNWARE_API_KEY", "")
-RUNWARE_MODEL     = os.environ.get("RUNWARE_MODEL", "runware:101@1")  # image generation — verify/pick exact model in your Runware dashboard's model browser
+RUNWARE_MODEL     = os.environ.get("RUNWARE_MODEL", "runware:101@1")  # FLUX.1 Dev — confirmed a real, high-quality model, not a placeholder
+# Applied to every generation (appended to any user/profile negative prompt,
+# never replaced by it) — without this, FLUX frequently renders a product
+# mockup / studio garment photo instead of standalone artwork, especially
+# when the prompt mentions apparel/print words like "t-shirt design of...".
+MOCKUP_EXCLUSION_TERMS = (
+    "product mockup, mockup, blank apparel, folded shirt, garment photography, "
+    "studio product shot, clothing tag, hanger, model wearing, framed print, "
+    "picture frame, wall art mockup, device screen mockup"
+)
 RUNWARE_UPSCALE_MODEL = os.environ.get("RUNWARE_UPSCALE_MODEL", "runware:504@1")  # Real-ESRGAN — matches the UI label, supports true 4x
 RUNWARE_BGREMOVE_MODEL = os.environ.get("RUNWARE_BGREMOVE_MODEL", "runware:110@1")  # verify against your dashboard
 R2_ENDPOINT       = os.environ.get("R2_ENDPOINT", "")  # https://<account_id>.r2.cloudflarestorage.com
@@ -452,6 +461,12 @@ async def call_runware_image(prompt: str, width: int, height: int,
         # omitted, but setting our own makes batch diversity observable and
         # prevents accidental deterministic reuse by a model/provider layer.
         "seed": uuid.uuid4().int % 4294967296,
+        # Previously unset — Runware's platform default is 20 steps, which
+        # under-serves FLUX Dev's prompt adherence. 30 is what Runware's own
+        # docs use for FLUX Dev quality examples. CFGScale 7.5 is the
+        # standard guidance value for this model.
+        "steps": 30,
+        "CFGScale": 7.5,
     }
     if negative_prompt:
         task["negativePrompt"] = negative_prompt
@@ -533,11 +548,11 @@ async def _process_image_gen(batch_id: str, user_id: str, full_prompt: str,
     )
 
 
-async def _retry_single_image(batch_id: str, index: int, full_prompt: str, dims: dict):
+async def _retry_single_image(batch_id: str, index: int, full_prompt: str, dims: dict, negative: str = ""):
     """Regenerates one specific failed image within an existing batch,
     without re-running or re-charging for the whole batch."""
     try:
-        runware_result = await call_runware_image(full_prompt, dims["width"], dims["height"])
+        runware_result = await call_runware_image(full_prompt, dims["width"], dims["height"], negative_prompt=negative)
         if not runware_result or not runware_result.get("image_url"):
             return
         async with httpx.AsyncClient(timeout=60) as client_http:
@@ -580,8 +595,11 @@ async def generate_images(payload: ImageGenIn, background_tasks: BackgroundTasks
         if profile.get("mood_tags"):
             full_prompt += f". Style: {', '.join(profile['mood_tags'])}"
 
-    negative = profile.get("negative_prompt", "") if profile else \
+    base_negative = profile.get("negative_prompt", "") if profile else \
                "text, watermarks, low quality, blurry, distorted"
+    # Mockup exclusion is always appended, never dropped even when a style
+    # profile supplies its own negative prompt.
+    negative = f"{base_negative}, {MOCKUP_EXCLUSION_TERMS}" if base_negative else MOCKUP_EXCLUSION_TERMS
 
     aspect_ratio = profile.get("aspect_ratio", "square") if profile else "square"
     size_map = {
@@ -598,7 +616,7 @@ async def generate_images(payload: ImageGenIn, background_tasks: BackgroundTasks
         "images": [], "errors": [], "status": "processing",
         "current_step": "Starting...", "current_index": 0,
         "total_requested": min(payload.quantity, 10),
-        "prompt": full_prompt, "dims": dims,
+        "prompt": full_prompt, "dims": dims, "negative": negative,
         "created_at": datetime.now(timezone.utc)})
 
     background_tasks.add_task(
@@ -643,6 +661,10 @@ async def retry_image(batch_id: str, index: int, payload: RetryImageIn, backgrou
 
     full_prompt = payload.prompt.strip() if payload.prompt and payload.prompt.strip() else batch.get("prompt", "")
     dims = batch.get("dims", {"width": 1024, "height": 1024})
+    # Previously retries sent no negative prompt at all (not even the batch's
+    # original one) — this reuses it, falling back to the mockup-exclusion
+    # default for older batches created before this field existed.
+    negative = batch.get("negative", MOCKUP_EXCLUSION_TERMS)
 
     # Remember the edited prompt so a future retry (or just viewing this
     # image's history) reflects what was actually asked for, not the batch's
@@ -652,7 +674,7 @@ async def retry_image(batch_id: str, index: int, payload: RetryImageIn, backgrou
             {"id": batch_id}, {"$set": {f"prompt_overrides.{index}": full_prompt}}
         )
 
-    background_tasks.add_task(_retry_single_image, batch_id, index, full_prompt, dims)
+    background_tasks.add_task(_retry_single_image, batch_id, index, full_prompt, dims, negative)
     await db.users.update_one({"id": user["id"]}, {"$inc": {"ai_gen_credits_used": 1}})
 
     return {"status": "retrying", "index": index, "prompt_used": full_prompt}
